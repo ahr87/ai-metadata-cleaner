@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Metadata Cleaner</title>
+  <meta name="description" content="Remove unnecessary metadata from your images. Runs entirely in your browser.">
+  <meta name="referrer" content="no-referrer">
+  <!-- No external requests at all: the image never leaves this device. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' blob: data:; style-src 'self'; script-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232563eb'/%3E%3Cpath d='M9 22l5-6 4 4 3-3 3 5z' fill='white'/%3E%3Ccircle cx='21' cy='11' r='2.5' fill='white'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="hero">
+    <div class="logo" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M3 16l5-5 4 4 3-3 6 6"/><circle cx="16" cy="8.5" r="1.6"/></svg>
+    </div>
+    <h1>AI Metadata Cleaner</h1>
+    <p class="subtitle">Remove unnecessary metadata from your images.</p>
+    <p class="privacy-pill">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+      Runs entirely in your browser — your image is never uploaded
+    </p>
+  </header>
+
+  <main>
+    <!-- 1. Upload -->
+    <section id="dropzone" class="card dropzone" tabindex="0" aria-label="Drop an image here or choose a file">
+      <div class="drop-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+      </div>
+      <p class="drop-title">Drag &amp; drop an image here</p>
+      <p class="drop-or">or</p>
+      <button type="button" id="chooseBtn" class="btn primary">Choose Image</button>
+      <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" hidden>
+      <p class="drop-hint">Supported: JPG / JPEG / PNG / WEBP · up to 50 MB</p>
+    </section>
+
+    <div id="errorBox" class="alert alert-error" role="alert" hidden></div>
+
+    <!-- 2. File info -->
+    <section id="fileCard" class="card" hidden>
+      <div class="file-row">
+        <div class="file-thumb"><img id="filePreview" alt="Selected image preview"></div>
+        <div class="file-info">
+          <p class="file-name" id="fileName"></p>
+          <dl class="meta-grid">
+            <div><dt>Size</dt><dd id="fileSize"></dd></div>
+            <div><dt>Dimensions</dt><dd id="fileDims"></dd></div>
+            <div><dt>Format</dt><dd id="fileFormat"></dd></div>
+          </dl>
+          <button type="button" class="link-btn" data-action="reset">Choose another image</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. Metadata report -->
+    <section id="reportCard" class="card" hidden>
+      <h2>Metadata Found</h2>
+      <div id="reportBody"></div>
+    </section>
+
+    <!-- 4/5. Clean -->
+    <section id="cleanCard" class="card" hidden>
+      <h2>Clean Image</h2>
+      <fieldset class="modes">
+        <legend class="sr-only">Cleaning mode</legend>
+        <label class="mode">
+          <input type="radio" name="mode" value="deep" checked>
+          <span class="mode-body">
+            <span class="mode-title">Deep Clean <span class="badge">Recommended</span></span>
+            <span class="mode-desc">Creates a brand-new image from the pixels only, removing as much metadata and provenance data as possible.</span>
+            <span class="mode-note" id="deepNote">JPG / WEBP are re-saved at high quality (95%), which may cause very minor compression. PNG stays lossless.</span>
+          </span>
+        </label>
+        <label class="mode">
+          <input type="radio" name="mode" value="metadata">
+          <span class="mode-body">
+            <span class="mode-title">Metadata Only</span>
+            <span class="mode-desc">Removes metadata blocks and keeps the original image data byte-for-byte. No quality change.</span>
+            <span class="mode-note">Keeps only the rotation flag and color profile so the image looks exactly the same.</span>
+          </span>
+        </label>
+      </fieldset>
+      <button type="button" id="cleanBtn" class="btn primary btn-lg">
+        <span class="btn-label">Clean Image</span>
+      </button>
+    </section>
+
+    <!-- 6. Result -->
+    <section id="resultCard" class="card" hidden>
+      <h2>Cleaning Result</h2>
+      <div id="resultBody"></div>
+    </section>
+
+    <!-- 7. Compare -->
+    <section id="compareCard" class="card" hidden>
+      <h2>Original vs Cleaned</h2>
+      <div class="compare">
+        <figure>
+          <div class="compare-img"><img id="cmpOriginal" alt="Original image"></div>
+          <figcaption><strong>Original</strong> <span id="cmpOriginalInfo"></span></figcaption>
+        </figure>
+        <figure>
+          <div class="compare-img"><img id="cmpCleaned" alt="Cleaned image"></div>
+          <figcaption><strong>Cleaned</strong> <span id="cmpCleanedInfo"></span></figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- 8. Download -->
+    <section id="downloadCard" class="card download-card" hidden>
+      <a id="downloadBtn" class="btn primary btn-lg" download>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12"/><path d="M7 11l5 5 5-5"/><path d="M5 20h14"/></svg>
+        Download Clean Image
+      </a>
+      <p class="download-name" id="downloadName"></p>
+      <p id="downloadStatus" class="download-status" role="status" hidden></p>
+      <button type="button" class="link-btn" data-action="reset">Clean another image</button>
+    </section>
+  </main>
+
+  <footer class="notice">
+    <h3>Please note</h3>
+    <p>This tool removes metadata and provenance information stored <em>inside the file</em>, where technically possible.</p>
+    <p>Removing metadata does <strong>not</strong> guarantee that Instagram, Facebook, TikTok, or another platform will stop identifying an image as AI-generated. Platforms may also analyse the image itself (for example, invisible watermarks or visual detection), which no metadata cleaner can change. This tool does not bypass AI detection.</p>
+  </footer>
+
+  <script src="js/binary.js"></script>
+  <script src="js/exif.js"></script>
+  <script src="js/formats.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/cleaner.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
