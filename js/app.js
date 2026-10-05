@@ -23,7 +23,7 @@
   ];
 
   const $ = (id) => document.getElementById(id);
-  const state = { file: null, bytes: null, info: null, display: null, urls: [], busy: false, cleanBlob: null, cleanName: '' };
+  const state = { file: null, bytes: null, info: null, display: null, urls: [], busy: false, cleanBlob: null, cleanName: '', batchMode: false };
 
   // Inside the Claude artifact viewer, plain <a download> links are blocked, so the
   // verified file is handed to the viewer's own save prompt instead. Locally, the
@@ -86,7 +86,9 @@
 
   function reset() {
     for (const u of state.urls) URL.revokeObjectURL(u);
-    Object.assign(state, { file: null, bytes: null, info: null, display: null, urls: [], busy: false, cleanBlob: null, cleanName: '' });
+    Object.assign(state, { file: null, bytes: null, info: null, display: null, urls: [], busy: false, cleanBlob: null, cleanName: '', batchMode: false });
+    if (MC.batch) MC.batch.reset();
+    $('cleanTitle').textContent = 'Clean Image';
     $('downloadStatus').hidden = true;
     for (const id of ['fileCard', 'reportCard', 'cleanCard', 'resultCard', 'compareCard', 'downloadCard']) $(id).hidden = true;
     $('dropzone').classList.remove('compact');
@@ -292,12 +294,16 @@
     state.busy = busy;
     const btn = $('cleanBtn');
     btn.disabled = busy;
-    const label = el('span', { class: 'btn-label', text: busy ? 'Cleaning…' : 'Clean Image' });
+    const label = el('span', { class: 'btn-label', text: busy ? 'Cleaning…' : state.batchMode ? 'Clean All' : 'Clean Image' });
     if (busy) btn.replaceChildren(el('span', { class: 'spinner' }), label);
     else btn.replaceChildren(label);
   }
 
   async function runClean() {
+    if (state.batchMode) {
+      if (!state.busy) MC.batch.cleanAll(document.querySelector('input[name="mode"]:checked').value);
+      return;
+    }
     if (!state.bytes || state.busy) return;
     clearError();
     for (const id of ['resultCard', 'compareCard', 'downloadCard']) $(id).hidden = true;
@@ -431,6 +437,27 @@
     }
   }
 
+  // ------------------------------------------------------------ multiple files
+
+  /** One file keeps the single-image workflow exactly as before; two or more use batch mode. */
+  function handleFiles(list) {
+    const files = Array.from(list || []);
+    if (!files.length || state.busy) return;
+    if (files.length === 1) return handleFile(files[0]);
+    reset();
+    state.batchMode = true;
+    setBusy(false);
+    MC.batch.start(files);
+  }
+
+  // Shared helpers for js/batch.js (UI only – the cleaning engine is MC.cleaner).
+  MC.ui = {
+    el, objectUrl, showError, clearError, setBusy, cleanName, unsupportedMessage, state,
+    FORMAT_LABEL, MAX_FILE, inViewer,
+    downloads: () => downloadsApi,
+    deepNoteDefault: document.getElementById('deepNote').textContent,
+  };
+
   // ------------------------------------------------------------ events
 
   function init() {
@@ -439,7 +466,7 @@
     $('chooseBtn').addEventListener('click', (e) => { e.stopPropagation(); input.click(); });
     dz.addEventListener('click', () => input.click());
     dz.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
-    input.addEventListener('change', () => handleFile(input.files[0]));
+    input.addEventListener('change', () => handleFiles(input.files));
 
     let depth = 0;
     window.addEventListener('dragenter', (e) => { e.preventDefault(); depth++; dz.classList.add('dragover'); });
@@ -449,8 +476,7 @@
       e.preventDefault();
       depth = 0;
       dz.classList.remove('dragover');
-      const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-      if (f) handleFile(f);
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
     });
 
     $('cleanBtn').addEventListener('click', runClean);

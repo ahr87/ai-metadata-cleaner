@@ -26,15 +26,15 @@
 
   <main>
     <!-- 1. Upload -->
-    <section id="dropzone" class="card dropzone" tabindex="0" aria-label="Drop an image here or choose a file">
+    <section id="dropzone" class="card dropzone" tabindex="0" aria-label="Drop images here or choose files">
       <div class="drop-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
       </div>
-      <p class="drop-title">Drag &amp; drop an image here</p>
+      <p class="drop-title">Drag &amp; drop images here</p>
       <p class="drop-or">or</p>
-      <button type="button" id="chooseBtn" class="btn primary">Choose Image</button>
-      <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" hidden>
-      <p class="drop-hint">Supported: JPG / JPEG / PNG / WEBP · up to 50 MB</p>
+      <button type="button" id="chooseBtn" class="btn primary">Choose Images</button>
+      <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple hidden>
+      <p class="drop-hint">One image or many · JPG / JPEG / PNG / WEBP · up to 50 MB each</p>
     </section>
 
     <div id="errorBox" class="alert alert-error" role="alert" hidden></div>
@@ -61,9 +61,22 @@
       <div id="reportBody"></div>
     </section>
 
+    <!-- Batch: list of selected images -->
+    <section id="batchCard" class="card" hidden>
+      <div class="batch-head">
+        <h2 id="batchTitle">Images Selected</h2>
+        <button type="button" class="link-btn" data-action="reset">Start over</button>
+      </div>
+      <div id="batchProgress" class="progress" hidden>
+        <p id="batchProgressText" class="progress-text" role="status" aria-live="polite"></p>
+        <div class="bar"><div id="batchBar" class="bar-fill"></div></div>
+      </div>
+      <ul id="batchList" class="batch-list"></ul>
+    </section>
+
     <!-- 4/5. Clean -->
     <section id="cleanCard" class="card" hidden>
-      <h2>Clean Image</h2>
+      <h2 id="cleanTitle">Clean Image</h2>
       <fieldset class="modes">
         <legend class="sr-only">Cleaning mode</legend>
         <label class="mode">
@@ -86,6 +99,20 @@
       <button type="button" id="cleanBtn" class="btn primary btn-lg">
         <span class="btn-label">Clean Image</span>
       </button>
+    </section>
+
+    <!-- Batch result + ZIP download -->
+    <section id="batchResultCard" class="card download-card" hidden>
+      <h2>Batch Result</h2>
+      <div id="batchSummary"></div>
+      <a id="zipBtn" class="btn primary btn-lg" download>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12"/><path d="M7 11l5 5 5-5"/><path d="M5 20h14"/></svg>
+        Download All (ZIP)
+      </a>
+      <p class="download-name" id="zipName"></p>
+      <p id="zipStatus" class="download-status" role="status" hidden></p>
+      <p class="kept-note">On iPhone the ZIP is saved to the Files app — tap it there to unzip. On Windows, right-click the ZIP and choose “Extract All”.</p>
+      <button type="button" class="link-btn" data-action="reset">Clean more images</button>
     </section>
 
     <!-- 6. Result -->
@@ -124,7 +151,7 @@
   <footer class="notice">
     <h3>Please note</h3>
     <p>This tool removes metadata and provenance information stored <em>inside the file</em>, where technically possible.</p>
-    <p>Removing metadata does <strong>not</strong> guarantee that Instagram, Facebook, TikTok, or another platform will stop identifying an image as AI-generated. Platforms may also analyse the image itself (for example, invisible watermarks or visual detection), which no metadata cleaner can change. This tool does not bypass AI detection.</p>
+    <p>Removing metadata does <strong>not</strong> guarantee that Instagram, Facebook, TikTok, or another platform will stop identifying an image as AI-generated. Platforms may also analyse the image itself (for example, invisible pixel-level watermarks such as Google’s SynthID, or visual detection), which no metadata cleaner can change. This tool does not bypass AI detection.</p>
   </footer>
 
   <script src="js/binary.js"></script>
@@ -133,5 +160,7 @@
   <script src="js/ai.js"></script>
   <script src="js/cleaner.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/zip.js"></script>
+  <script src="js/batch.js"></script>
 </body>
 </html>
