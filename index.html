@@ -32,7 +32,10 @@
       </div>
       <p class="drop-title">Drag &amp; drop images here</p>
       <p class="drop-or">or</p>
-      <button type="button" id="chooseBtn" class="btn primary">Choose Images</button>
+      <div class="picker-actions">
+        <button type="button" id="chooseBtn" class="btn primary">Choose Images</button>
+        <button type="button" id="clearAllBtn" class="btn secondary" hidden>Clear All</button>
+      </div>
       <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple hidden>
       <p class="drop-hint">One image or many · JPG / JPEG / PNG / WEBP · up to 50 MB each</p>
     </section>
@@ -65,7 +68,7 @@
     <section id="batchCard" class="card" hidden>
       <div class="batch-head">
         <h2 id="batchTitle">Images Selected</h2>
-        <button type="button" class="link-btn" data-action="reset">Start over</button>
+        <button type="button" class="link-btn" data-action="reset">Clear All</button>
       </div>
       <div id="batchProgress" class="progress" hidden>
         <p id="batchProgressText" class="progress-text" role="status" aria-live="polite"></p>

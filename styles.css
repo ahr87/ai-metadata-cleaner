@@ -75,6 +75,9 @@ main { max-width: 780px; margin: 0 auto; padding: 0 16px; display: grid; gap: 16
 .btn-lg { width: 100%; padding: 14px 20px; font-size: 16px; }
 .btn:focus-visible, .link-btn:focus-visible, .dropzone:focus-visible { outline: 3px solid rgba(37, 99, 235, .35); outline-offset: 2px; }
 
+.btn.secondary { background: var(--card); color: var(--text); border: 1px solid var(--line); box-shadow: none; }
+.btn.secondary:hover { background: var(--accent-soft); }
+.picker-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
 .link-btn {
   background: none; border: 0; padding: 0; font: inherit; color: var(--accent);
   cursor: pointer; font-weight: 500;

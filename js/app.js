@@ -95,6 +95,14 @@
     $('fileInput').value = '';
     clearError();
     setBusy(false);
+    updatePicker();
+  }
+
+  /** "Choose Images" when empty; "Add More Images" + "Clear All" once something is selected. */
+  function updatePicker() {
+    const has = !!state.file || (state.batchMode && MC.batch && MC.batch.count() > 0);
+    $('chooseBtn').textContent = has ? 'Add More Images' : 'Choose Images';
+    $('clearAllBtn').hidden = !has;
   }
 
   // ------------------------------------------------------------ load + analyze
@@ -141,6 +149,7 @@
     }
 
     Object.assign(state, { file, bytes, info, display });
+    updatePicker();
     renderFile();
     renderReport();
     renderCleanCard();
@@ -439,15 +448,29 @@
 
   // ------------------------------------------------------------ multiple files
 
-  /** One file keeps the single-image workflow exactly as before; two or more use batch mode. */
+  /**
+   * New selections are ADDED to what is already there (file picker and drag & drop).
+   * - nothing selected yet + one file  → the single-image workflow, exactly as before
+   * - nothing selected yet + more files → batch mode
+   * - one image already open            → it becomes a batch together with the new files
+   * - batch already open                → the new files are appended to the batch
+   */
   function handleFiles(list) {
     const files = Array.from(list || []);
-    if (!files.length || state.busy) return;
-    if (files.length === 1) return handleFile(files[0]);
+    if (!files.length) return;
+    if (state.batchMode) {
+      MC.batch.add(files); // allowed while the batch is busy: new images wait in the queue
+      updatePicker();
+      return;
+    }
+    if (state.busy) return; // a single image is being cleaned right now
+    if (!state.file && files.length === 1) return handleFile(files[0]);
+    const current = state.file ? [state.file] : [];
     reset();
     state.batchMode = true;
     setBusy(false);
-    MC.batch.start(files);
+    MC.batch.add(current.concat(files));
+    updatePicker();
   }
 
   // Shared helpers for js/batch.js (UI only – the cleaning engine is MC.cleaner).
@@ -466,7 +489,12 @@
     $('chooseBtn').addEventListener('click', (e) => { e.stopPropagation(); input.click(); });
     dz.addEventListener('click', () => input.click());
     dz.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
-    input.addEventListener('change', () => handleFiles(input.files));
+    input.addEventListener('change', () => {
+      const files = Array.from(input.files || []);
+      input.value = ''; // so the same folder or file can be picked again later
+      handleFiles(files);
+    });
+    $('clearAllBtn').addEventListener('click', (e) => { e.stopPropagation(); reset(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
 
     let depth = 0;
     window.addEventListener('dragenter', (e) => { e.preventDefault(); depth++; dz.classList.add('dragover'); });

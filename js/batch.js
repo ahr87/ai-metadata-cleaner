@@ -30,6 +30,9 @@
   let run = 0; // bumps on reset so an in-flight loop stops touching the page
   let zip = null; // { blob, url, name, count }
   let skipped = 0;
+  let analyzing = false;
+  let cleaning = false;
+  let nextId = 0;
 
   const tick = () => new Promise((r) => setTimeout(r, 0)); // let the page repaint between images
 
@@ -84,10 +87,23 @@
   function setTitle() {
     const n = items.length;
     const ready = count('ready');
-    let t = n + ' Images Selected';
-    if (ready && ready === n) t = n + ' Images Ready';
-    else if (ready) t = ready + ' of ' + n + ' Images Ready';
+    const noun = n === 1 ? ' Image' : ' Images';
+    let t = n + noun + ' Selected';
+    if (ready && ready === n) t = n + noun + ' Ready';
+    else {
+      const parts = [];
+      if (ready) parts.push(ready + ' ready');
+      if (count('verified')) parts.push(count('verified') + ' verified');
+      if (count('warning')) parts.push(count('warning') + ' with warnings');
+      if (count('failed')) parts.push(count('failed') + ' failed');
+      if (parts.length) t += ' · ' + parts.join(' · ');
+    }
     $('batchTitle').textContent = t;
+  }
+
+  /** Same file picked twice → same key. Two different files that share a name get different keys. */
+  function fileKey(f) {
+    return [f.name, f.size, f.lastModified, f.type].join('\u0000');
   }
 
   // ------------------------------------------------------------ analysis
@@ -145,12 +161,17 @@
     item.display = display;
   }
 
+  /** Analyzes only images that have not been analyzed yet; images added meanwhile are picked up too. */
   async function analyzeAll(myRun) {
+    analyzing = true;
     ui.setBusy(true);
-    for (let i = 0; i < items.length; i++) {
+    for (let done = 0; ; done++) {
       if (myRun !== run) return;
-      const item = items[i];
-      setProgress('Analyzing', i, items.length);
+      const pending = items.filter((i) => !i.analyzed);
+      const item = pending[0];
+      if (!item) break;
+      item.analyzed = true;
+      setProgress('Analyzing', done, done + pending.length);
       setStatus(item, 'analyzing');
       await tick();
       try {
@@ -163,11 +184,12 @@
       }
       setTitle();
     }
+    analyzing = false;
     setProgress(null);
     ui.setBusy(false);
     setTitle();
-    $('cleanCard').hidden = !items.some((i) => i.status !== 'failed');
-    if (!count('ready')) ui.showError('None of the selected files can be cleaned.', 'See the reason shown on each file.');
+    $('cleanCard').hidden = !items.some((i) => i.summary);
+    if (!items.some((i) => i.summary)) ui.showError('None of the selected files can be cleaned.', 'See the reason shown on each file.');
   }
 
   // ------------------------------------------------------------ cleaning
@@ -213,8 +235,13 @@
 
   async function cleanAll(mode) {
     const myRun = run;
-    const todo = items.filter((i) => i.summary); // every image that analyzed successfully
-    if (!todo.length) return;
+    // Every image that analyzed successfully and is not already verified.
+    const todo = items.filter((i) => i.summary && i.status !== 'verified');
+    if (!todo.length) {
+      if (items.some((i) => i.status === 'verified')) finish(mode);
+      return;
+    }
+    cleaning = true;
     ui.clearError();
     $('batchResultCard').hidden = true;
     revokeZip();
@@ -238,9 +265,11 @@
       }
     }
     if (myRun !== run) return;
+    cleaning = false;
     setProgress(null);
     ui.setBusy(false);
-    finish(mode);
+    if (items.some((i) => !i.analyzed)) analyzeAll(run); // images added while cleaning
+    else finish(mode);
   }
 
   // ------------------------------------------------------------ result + ZIP
@@ -331,23 +360,45 @@
 
   // ------------------------------------------------------------ public
 
-  function start(fileList) {
-    run++;
-    let files = fileList;
-    skipped = Math.max(0, files.length - MAX_BATCH);
-    files = files.slice(0, MAX_BATCH);
-    items = files.map((file, idx) => ({ id: idx, file, status: 'queued', detail: '', summary: null, result: null, thumb: null, node: null }));
+  /**
+   * Adds files to the batch. Existing images keep their analysis, status and
+   * cleaned output; only the new ones are queued and analyzed.
+   */
+  function add(fileList) {
+    const known = new Set(items.map((i) => fileKey(i.file)));
+    const fresh = [];
+    let dupes = 0;
+    for (const f of fileList) {
+      const k = fileKey(f);
+      if (known.has(k)) { dupes++; continue; }
+      known.add(k);
+      fresh.push(f);
+    }
+    const room = Math.max(0, MAX_BATCH - items.length);
+    skipped = Math.max(0, fresh.length - room);
     const list = $('batchList');
-    list.replaceChildren();
-    for (const it of items) { renderItem(it); list.appendChild(it.node); }
+    for (const file of fresh.slice(0, room)) {
+      const it = { id: nextId++, file, status: 'queued', detail: '', summary: null, result: null, thumb: null, node: null, analyzed: false };
+      items.push(it);
+      renderItem(it);
+      list.appendChild(it.node);
+    }
+    if (fresh.length && room) {
+      // The previous summary and ZIP no longer cover every image; they are rebuilt after the next Clean All.
+      $('batchResultCard').hidden = true;
+      revokeZip();
+    }
     document.body.classList.add('batch-mode');
     $('dropzone').classList.add('compact');
     $('deepNote').textContent = ui.deepNoteDefault;
     $('batchCard').hidden = false;
     $('cleanTitle').textContent = 'Clean All Images';
     setTitle();
-    if (skipped) ui.showError('Only the first ' + MAX_BATCH + ' images were added.', skipped + ' more were skipped. Please clean them in another batch.');
-    analyzeAll(run);
+    ui.clearError();
+    if (skipped) ui.showError('A batch can hold up to ' + MAX_BATCH + ' images.', skipped + ' image' + (skipped === 1 ? ' was' : 's were') + ' not added. Please clean them in another batch.');
+    else if (dupes && !fresh.length) ui.showError('Already in the batch.', 'The selected ' + (dupes === 1 ? 'image is' : 'images are') + ' already in the list.');
+    if (!analyzing && !cleaning && items.some((i) => !i.analyzed)) analyzeAll(run);
+    return { added: Math.min(fresh.length, room), duplicates: dupes, skipped };
   }
 
   function reset() {
@@ -355,6 +406,8 @@
     revokeZip();
     items = [];
     skipped = 0;
+    analyzing = false;
+    cleaning = false;
     $('batchList').replaceChildren();
     $('batchCard').hidden = true;
     $('batchResultCard').hidden = true;
@@ -364,5 +417,5 @@
 
   $('zipBtn').addEventListener('click', saveZipInViewer);
 
-  MC.batch = { start, cleanAll, reset, _items: () => items, _zip: () => zip };
+  MC.batch = { add, start: add, cleanAll, reset, count: () => items.length, _items: () => items, _zip: () => zip };
 })();
