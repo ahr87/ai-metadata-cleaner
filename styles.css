@@ -276,6 +276,19 @@ body.batch-mode main, body.batch-mode .notice { max-width: 1120px; }
 .stat.bad .num { color: var(--err); }
 #batchResultCard .btn-lg { margin-top: 4px; }
 
+/* ---------- video ---------- */
+.video-preview {
+  flex: 0 0 220px; min-width: 0; border-radius: 14px; overflow: hidden; background: #0f172a;
+  aspect-ratio: 16 / 10; display: grid; place-items: center; border: 1px solid var(--line);
+}
+.video-preview video { width: 100%; height: 100%; object-fit: contain; display: block; background: #0f172a; }
+.video-nopreview { color: #cbd5e1; font-size: 13px; margin: 0; padding: 12px; text-align: center; }
+.video-promise { margin: 0 0 6px; font-weight: 600; color: var(--ok); }
+#videoCleanCard .mode-note { display: block; margin: 0 0 16px; }
+.verify-title { font-size: 15px; margin: 4px 0 8px; }
+#videoCard .meta-grid dd { overflow-wrap: anywhere; }
+#videoCard .kept-note { margin-top: 14px; }
+
 /* ---------- footer ---------- */
 .notice {
   max-width: 780px; margin: 24px auto 48px; padding: 0 16px; color: var(--muted); font-size: 13.5px;
@@ -290,6 +303,8 @@ body.batch-mode main, body.batch-mode .notice { max-width: 1120px; }
   .card { padding: 18px; }
   .file-row { flex-direction: column; align-items: stretch; }
   .file-thumb { flex-basis: auto; height: 200px; }
+  .video-preview { flex-basis: auto; width: 100%; }
+  #videoCard .meta-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .groups, .checks { grid-template-columns: 1fr; }
   .param { grid-template-columns: 1fr; gap: 0; }
   .stat .num { font-size: 24px; }

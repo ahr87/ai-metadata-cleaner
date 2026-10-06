@@ -23,7 +23,7 @@
   ];
 
   const $ = (id) => document.getElementById(id);
-  const state = { file: null, bytes: null, info: null, display: null, urls: [], busy: false, cleanBlob: null, cleanName: '', batchMode: false };
+  const state = { file: null, bytes: null, info: null, display: null, urls: [], busy: false, cleanBlob: null, cleanName: '', batchMode: false, videoMode: false };
 
   // Inside the Claude artifact viewer, plain <a download> links are blocked, so the
   // verified file is handed to the viewer's own save prompt instead. Locally, the
@@ -86,8 +86,9 @@
 
   function reset() {
     for (const u of state.urls) URL.revokeObjectURL(u);
-    Object.assign(state, { file: null, bytes: null, info: null, display: null, urls: [], busy: false, cleanBlob: null, cleanName: '', batchMode: false });
+    Object.assign(state, { file: null, bytes: null, info: null, display: null, urls: [], busy: false, cleanBlob: null, cleanName: '', batchMode: false, videoMode: false });
     if (MC.batch) MC.batch.reset();
+    if (MC.videoUI) MC.videoUI.reset();
     $('cleanTitle').textContent = 'Clean Image';
     $('downloadStatus').hidden = true;
     for (const id of ['fileCard', 'reportCard', 'cleanCard', 'resultCard', 'compareCard', 'downloadCard']) $(id).hidden = true;
@@ -100,7 +101,7 @@
 
   /** "Choose Images" when empty; "Add More Images" + "Clear All" once something is selected. */
   function updatePicker() {
-    const has = !!state.file || (state.batchMode && MC.batch && MC.batch.count() > 0);
+    const has = !!state.file || state.videoMode || (state.batchMode && MC.batch && MC.batch.count() > 0);
     $('chooseBtn').textContent = has ? 'Add More Images' : 'Choose Images';
     $('clearAllBtn').hidden = !has;
   }
@@ -456,8 +457,32 @@
    * - batch already open                → the new files are appended to the batch
    */
   function handleFiles(list) {
-    const files = Array.from(list || []);
+    let files = Array.from(list || []);
     if (!files.length) return;
+
+    // Videos (MP4/MOV/M4V) go to the separate video module, one at a time.
+    const isVideo = (f) => !!(MC.video && MC.video.isVideoFile(f));
+    const videos = files.filter(isVideo);
+    if (state.videoMode) {
+      showError('A video is open.', 'Use Clear All to start a new selection. Videos are cleaned one at a time.');
+      return;
+    }
+    if (videos.length) {
+      if (videos.length === 1 && files.length === 1 && !state.file && !state.batchMode && !state.busy) {
+        reset();
+        state.videoMode = true;
+        updatePicker();
+        MC.videoUI.start(files[0]);
+        return;
+      }
+      files = files.filter((f) => !isVideo(f));
+      const note = ['Videos are cleaned one at a time.', 'Select a single video on its own (images and videos cannot be mixed in one batch yet). ' + videos.length + ' video' + (videos.length === 1 ? ' was' : 's were') + ' not added.'];
+      if (!files.length) { showError(note[0], note[1]); return; }
+      handleFiles(files);
+      showError(note[0], note[1]);
+      return;
+    }
+
     if (state.batchMode) {
       MC.batch.add(files); // allowed while the batch is busy: new images wait in the queue
       updatePicker();
@@ -475,7 +500,7 @@
 
   // Shared helpers for js/batch.js (UI only – the cleaning engine is MC.cleaner).
   MC.ui = {
-    el, objectUrl, showError, clearError, setBusy, cleanName, unsupportedMessage, state,
+    el, objectUrl, showError, clearError, setBusy, cleanName, unsupportedMessage, state, renderAiBox, fieldTable,
     FORMAT_LABEL, MAX_FILE, inViewer,
     downloads: () => downloadsApi,
     deepNoteDefault: document.getElementById('deepNote').textContent,

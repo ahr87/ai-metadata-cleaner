@@ -7,7 +7,7 @@
   <meta name="description" content="Remove unnecessary metadata from your images. Runs entirely in your browser.">
   <meta name="referrer" content="no-referrer">
   <!-- No external requests at all: the image never leaves this device. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' blob: data:; style-src 'self'; script-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' blob: data:; media-src blob:; style-src 'self'; script-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232563eb'/%3E%3Cpath d='M9 22l5-6 4 4 3-3 3 5z' fill='white'/%3E%3Ccircle cx='21' cy='11' r='2.5' fill='white'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -30,14 +30,14 @@
       <div class="drop-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
       </div>
-      <p class="drop-title">Drag &amp; drop images here</p>
+      <p class="drop-title">Drag &amp; drop images or a video here</p>
       <p class="drop-or">or</p>
       <div class="picker-actions">
         <button type="button" id="chooseBtn" class="btn primary">Choose Images</button>
         <button type="button" id="clearAllBtn" class="btn secondary" hidden>Clear All</button>
       </div>
-      <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple hidden>
-      <p class="drop-hint">One image or many · JPG / JPEG / PNG / WEBP · up to 50 MB each</p>
+      <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp,.mp4,.mov,.m4v,video/mp4,video/quicktime,video/x-m4v" multiple hidden>
+      <p class="drop-hint">Images: one or many · JPG / PNG / WEBP · up to 50 MB each<br>Videos: one at a time · MP4 / MOV / M4V</p>
     </section>
 
     <div id="errorBox" class="alert alert-error" role="alert" hidden></div>
@@ -62,6 +62,60 @@
     <section id="reportCard" class="card" hidden>
       <h2>Metadata Found</h2>
       <div id="reportBody"></div>
+    </section>
+
+    <!-- Video: one file at a time (js/video/) -->
+    <section id="videoCard" class="card" hidden>
+      <div class="file-row">
+        <div class="video-preview">
+          <video id="videoPreview" muted playsinline controls preload="metadata"></video>
+          <p id="videoNoPreview" class="video-nopreview" hidden>Preview not available in this browser</p>
+        </div>
+        <div class="file-info">
+          <p class="file-name" id="videoName"></p>
+          <dl class="meta-grid">
+            <div><dt>Format</dt><dd id="videoFormat"></dd></div>
+            <div><dt>Size</dt><dd id="videoSize"></dd></div>
+            <div><dt>Duration</dt><dd id="videoDuration"></dd></div>
+            <div><dt>Resolution</dt><dd id="videoRes"></dd></div>
+            <div><dt>Codec</dt><dd id="videoCodec"></dd></div>
+            <div><dt>Status</dt><dd><span id="videoStatus" class="pill"></span></dd></div>
+          </dl>
+          <button type="button" class="link-btn" data-action="reset">Choose another file</button>
+        </div>
+      </div>
+      <p class="kept-note">On iPhone: for the most accurate cleaning of the original video file, choose the video from Files when possible. iOS may prepare or compress videos selected directly from Photos before the browser receives them.</p>
+    </section>
+
+    <section id="videoReportCard" class="card" hidden>
+      <h2>Metadata Found</h2>
+      <div id="videoReport"></div>
+    </section>
+
+    <section id="videoCleanCard" class="card" hidden>
+      <h2>Clean Video</h2>
+      <p class="video-promise">Video is cleaned without re-encoding. Video and audio quality are preserved.</p>
+      <p class="mode-note">Metadata is overwritten in place with empty padding and the video and audio data are copied byte-for-byte, so the file keeps exactly the same size. Everything happens on this device.</p>
+      <div id="videoProgress" class="progress" hidden>
+        <p id="videoProgressText" class="progress-text" role="status" aria-live="polite"></p>
+        <div class="bar"><div id="videoBar" class="bar-fill"></div></div>
+      </div>
+      <button type="button" id="videoCleanBtn" class="btn primary btn-lg"><span class="btn-label">Clean Metadata</span></button>
+    </section>
+
+    <section id="videoResultCard" class="card" hidden>
+      <h2>Cleaning Result</h2>
+      <div id="videoResult"></div>
+    </section>
+
+    <section id="videoDownloadCard" class="card download-card" hidden>
+      <a id="videoDownloadBtn" class="btn primary btn-lg" download>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12"/><path d="M7 11l5 5 5-5"/><path d="M5 20h14"/></svg>
+        Download Clean Video
+      </a>
+      <p class="download-name" id="videoDownloadName"></p>
+      <p id="videoDownloadStatus" class="download-status" role="status" hidden></p>
+      <button type="button" class="link-btn" data-action="reset">Clean another file</button>
     </section>
 
     <!-- Batch: list of selected images -->
@@ -165,5 +219,7 @@
   <script src="js/app.js"></script>
   <script src="js/zip.js"></script>
   <script src="js/batch.js"></script>
+  <script src="js/video/mp4.js"></script>
+  <script src="js/video/video-ui.js"></script>
 </body>
 </html>
